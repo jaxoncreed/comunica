@@ -2,10 +2,11 @@ import type { IActionHttp, IActorHttpOutput, IActorHttpArgs } from '@comunica/bu
 import { ActorHttp } from '@comunica/bus-http';
 import { KeysHttp } from '@comunica/context-entries';
 import type { IMediatorTypeTime } from '@comunica/mediatortype-time';
-import type { Readable } from 'readable-stream';
 import 'cross-fetch/polyfill';
 import { FetchInitPreprocessor } from './FetchInitPreprocessor';
 import type { IFetchInitPreprocessor } from './IFetchInitPreprocessor';
+// eslint-disable-next-line import/no-nodejs-modules
+const Stream = require('stream');
 
 /**
  * A node-fetch actor that listens on the 'init' bus.
@@ -83,33 +84,27 @@ export class ActorHttpFetch extends ActorHttp {
 
       const response = await (customFetch || fetch)(action.input, requestInit);
 
-      // We remove or update the timeout
-      if (requestTimeout !== undefined) {
-        const httpBodyTimeout = action.context?.get(KeysHttp.httpBodyTimeout) || false;
-        if (httpBodyTimeout && response.body) {
-          onTimeout = () => response.body?.cancel(new Error(`HTTP timeout when reading the body of ${response.url}.
-This error can be disabled by modifying the 'httpBodyTimeout' and/or 'httpTimeout' options.`));
-          (<Readable><any>response.body).on('close', () => {
-            clearTimeout(requestTimeout);
-          });
-        } else {
-          clearTimeout(requestTimeout);
-        }
-      }
-
-      // Node-fetch does not support body.cancel, while it is mandatory according to the fetch and readablestream api.
-      // If it doesn't exist, we monkey-patch it.
-      if (response.body && !response.body.cancel) {
-        response.body.cancel = async(error?: Error) => {
-          (<Readable><any>response.body).destroy(error);
-          if (requestTimeout !== undefined) {
-            // We make sure to remove the timeout if it is still enabled
-            clearTimeout(requestTimeout);
-          }
-        };
-      }
-
-      return response;
+      return new Promise(async(resolve): Promise<void> => {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        const body1 = response.body?.pipe(new Stream.PassThrough());
+        // @ts-expect-error
+        const body2 = response.body?.pipe(new Stream.PassThrough());
+        console.log('Checking data');
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        body1.on('data', data => {
+          console.log('quad');
+          console.log(data);
+        });
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-expect-error
+        body1.on('end', data => {
+          console.log('data does actually end');
+          resolve(new Response());
+        });
+        console.log('==============');
+      });
     } catch (error: unknown) {
       if (requestTimeout !== undefined) {
         clearTimeout(requestTimeout);
