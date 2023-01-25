@@ -8,7 +8,9 @@ import type {
   DataSources,
   IDataSource,
   IDataDestination,
-  MetadataBindings, FunctionArgumentsCache,
+  MetadataBindings,
+  FunctionArgumentsCache,
+  IHttpCacheStorage,
 } from '@comunica/types';
 import type * as RDF from '@rdfjs/types';
 import type { IDocumentLoader } from 'jsonld-context-parser';
@@ -51,6 +53,12 @@ export const KeysHttp = {
    */
   httpBodyTimeout: new ActionContextKey<boolean>('@comunica/bus-http:http-body-timeout'),
   /**
+   * A storage object that can overwrites the default http cache
+   */
+  httpCacheStorage: new ActionContextKey<
+  IHttpCacheStorage<ReadableStream<Uint8Array>>
+  >('@communica/bus-http:cache-storage'),
+  /**
    * Number of retries to make on failed network calls. This only takes effect
    * on errors thrown during the initial fetch() call and not while streaming the body.
    */
@@ -85,6 +93,13 @@ export const KeysHttpProxy = {
    * Interface.
    */
   httpProxyHandler: new ActionContextKey<IProxyHandler>('@comunica/actor-http-proxy:httpProxyHandler'),
+};
+
+export const KeysHttpCache = {
+  /**
+   * Will skip the HTTP cache if this is set to true
+   */
+  doNotCheckHttpCache: new ActionContextKey<boolean>('@communica/actor-http-cache:do-not-check-http-cache'),
 };
 
 export const KeysInitQuery = {

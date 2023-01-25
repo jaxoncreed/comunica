@@ -160,18 +160,7 @@ This error can be disabled by modifying the 'httpBodyTimeout' and/or 'httpTimeou
         }
       }
 
-      // Node-fetch does not support body.cancel, while it is mandatory according to the fetch and readablestream api.
-      // If it doesn't exist, we monkey-patch it.
-      if (response.body && !response.body.cancel) {
-        response.body.cancel = async(error?: Error) => {
-          (<Readable><any>response.body).destroy(error);
-          if (requestTimeout !== undefined) {
-            // We make sure to remove the timeout if it is still enabled
-            clearTimeout(requestTimeout);
-          }
-        };
-      }
-
+      ActorHttp.normalizeResponseBody(response.body, requestTimeout);
       return response;
     } catch (error: unknown) {
       if (requestTimeout !== undefined) {

@@ -1,5 +1,6 @@
 import type { IAction, IActorArgs, IActorOutput, IActorTest, Mediate } from '@comunica/core';
 import { Actor } from '@comunica/core';
+import type { Readable } from 'readable-stream';
 import { ReadableWebToNodeStream } from 'readable-web-to-node-stream';
 
 if (!global.ReadableStream) {
@@ -60,6 +61,55 @@ export abstract class ActorHttp extends Actor<IActionHttp, IActorTest, IActorHtt
       hash[key] = value;
     });
     return hash;
+  }
+
+  /**
+   * Normalize the response body by adding methods to it if they are missing
+   * @param body The response body
+   * @param requestTimeout Optional timeout used for the cancel funtion
+   */
+  public static normalizeResponseBody(body?: Response['body'], requestTimeout?: NodeJS.Timeout): void {
+    // Node-fetch does not support body.cancel, while it is mandatory according to the fetch and readablestream api.
+    // If it doesn't exist, we monkey-patch it.
+    if (body && !body.cancel) {
+      body.cancel = async(error?: Error) => {
+        (<Readable><any>body).destroy(error);
+        if (requestTimeout !== undefined) {
+          // We make sure to remove the timeout if it is still enabled
+          clearTimeout(requestTimeout);
+        }
+      };
+    }
+
+    // Node-fetch does not support body.tee, while it is mandatory according to the fetch and readablestream api.
+    // If it doesn't exist, we monkey-patch it.
+    if (body && !body.tee) {
+      body.tee = (): [ReadableStream, ReadableStream] => {
+        // Why do we do an inline require here? Why do we use the base NodeJS `stream` library rather than the
+        // `readable-stream` library from npm?
+        //
+        // Well, later down the road, we want to reconsutrct a `Response` using `new Response(teedStream)`. When calling
+        // the constructor of Response in `node-fetch`, it checks to see what type of body was provided to it. If the
+        // body is `instanceof Stream` it will leave the body alone
+        // (https://github.com/node-fetch/node-fetch/blob/main/src/body.js#L53), if not it tried to convert it to a
+        // buffer (https://github.com/node-fetch/node-fetch/blob/main/src/body.js#L62).
+        //
+        // So, when you pass in a `readable-stream` stream, `node-fetch` gets confused because a `readable-stream`
+        // stream is not an instanceof the base NodeJS stream. So, it tries to convert it into a buffer which causes
+        // the result of `await response.text()` to be `[object Object]` because, of course, `Buffer.from()` expects a
+        // string, and `[object Object]` is the stratification of a stream object.
+        //
+        // This is an inline import because we don't want to require `stream` at the top for browser use cases as the
+        // `stream` library won't be available in browser. Though the browser should never execute line 88 because its
+        // response does have a `tee` method.
+        //
+        // eslint-disable-next-line import/no-nodejs-modules
+        const stream = require('stream');
+        const stream1 = (<Readable><any> body).pipe(new stream.PassThrough());
+        const stream2 = (<Readable><any> body).pipe(new stream.PassThrough());
+        return [ stream1, stream2 ];
+      };
+    }
   }
 }
 

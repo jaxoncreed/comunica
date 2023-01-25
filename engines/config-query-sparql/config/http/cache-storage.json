@@ -1,0 +1,21 @@
+{
+  "@context": [
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/mediator-number/^2.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/http-cache-storage-lru/^2.0.0/components/context.jsonld",
+    "https://linkedsoftwaredependencies.org/bundles/npm/@comunica/actor-http-cache/^2.0.0/components/context.jsonld"
+  ],
+  "@graph": [
+    {
+      "@id": "urn:comunica:default:http/cache-storage#main",
+      "@type": "HttpCacheStorageStream",
+      "mediatorHttpInvalidate": { "@id": "urn:comunica:default:http-invalidate/mediators#main" },
+      "maxBufferSize": 10000,
+      "bufferCache": {
+        "@id": "urn:comunica:default:http/cache-storage#buffer",
+        "@type": "HttpCacheStorageLru",
+        "max": 1024,
+        "mediatorHttpInvalidate": { "@id": "urn:comunica:default:http-invalidate/mediators#main" }
+      }
+    }
+  ]
+}
